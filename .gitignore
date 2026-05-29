@@ -1,0 +1,18 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+
+# Editor / tmp
+*.swp
+*~
+.idea/
+.vscode/
+
+# Secrets — never commit these even by accident
+*.env
+secrets/
+*.key
+*.pem
+id_rsa*
