@@ -30,6 +30,7 @@ Each skill is self-contained: its folder has everything you need plus a setup gu
 |-------|--------------|--------|
 | [快速阅读论文](skills/快速阅读论文) <br>(paper speed-reader) | Turn a paper PDF into a self-contained, offline HTML reader — PDF on the left, a concise Chinese walkthrough (term cards / per-figure notes) on the right. Free, fully local. | ✅ ready |
 | [生成脑图](skills/生成脑图) <br>(mind-map generator) | Turn a long document into an interactive, self-contained markmap mind map (HTML) — toolbar for expand/collapse, show/hide detail, and L1–L5 level jumps. Free, no install. | ✅ ready |
+| [技能分享](skills/技能分享) <br>(skill de-identifier) | Meta-skill: de-identify and package any Claude Code skill into a self-contained folder — scans for API keys / passwords / usernames / emails / org / internal IPs, replaces with placeholders, grep self-checks. Share or open-source any skill safely. | ✅ ready |
 
 ## How to install a skill
 
