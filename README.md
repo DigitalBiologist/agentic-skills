@@ -1,4 +1,4 @@
-# claude-skills
+# agentic-skills
 
 A curated, **de-identified** collection of [Claude Code](https://claude.com/claude-code) skills — battle-tested prompts and workflows for research, writing, and automation, packaged so anyone can drop them into their own setup.
 
@@ -11,7 +11,7 @@ A *skill* (a.k.a. slash command) is a Markdown file with YAML frontmatter that l
 ## Repository layout
 
 ```
-claude-skills/
+agentic-skills/
 ├── README.md            # this file — also the skills index
 ├── LICENSE              # MIT
 ├── CONTRIBUTING.md      # de-identification checklist (read before adding a skill)
@@ -28,7 +28,7 @@ Each skill is self-contained: its folder has everything you need plus a setup gu
 
 | Skill | What it does | Status |
 |-------|--------------|--------|
-| _(none imported yet — coming one at a time)_ | | |
+| [快速阅读论文](skills/快速阅读论文) <br>(paper speed-reader) | Turn a paper PDF into a self-contained, offline HTML reader — PDF on the left, a concise Chinese walkthrough (term cards / per-figure notes) on the right. Free, fully local. | ✅ ready |
 
 ## How to install a skill
 
