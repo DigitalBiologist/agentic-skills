@@ -32,6 +32,7 @@ Each skill is self-contained: its folder has everything you need plus a setup gu
 | [生成脑图](skills/生成脑图) <br>(mind-map generator) | Turn a long document into an interactive, self-contained markmap mind map (HTML) — toolbar for expand/collapse, show/hide detail, and L1–L5 level jumps. Free, no install. | ✅ ready |
 | [技能分享](skills/技能分享) <br>(skill de-identifier) | Meta-skill: de-identify and package any Claude Code skill into a self-contained folder — scans for API keys / passwords / usernames / emails / org / internal IPs, replaces with placeholders, grep self-checks. Share or open-source any skill safely. | ✅ ready |
 | [发布到技能库](skills/发布到技能库) <br>(skill publisher) | Meta-skill: de-identify a skill and publish it into this repo — place by convention, write the config guide, grep self-check, update this index, commit & push. Repo URL & commit identity resolve dynamically, so forks publish to their own repo. | ✅ ready |
+| [提交技能](skills/提交技能) <br>(newbie contributor) | **Newbie-friendly:** tell your Claude *"submit my skill to agentic-skills"* and it does everything — sync the repo, place the skill, quick de-id check, branch, commit, push, open a PR. No git knowledge needed; you just wait for the maintainer to merge. Falls back to fork-based PR if you're not yet a collaborator. | ✅ ready |
 
 ## How to install a skill
 
@@ -43,6 +44,22 @@ Each skill is self-contained: its folder has everything you need plus a setup gu
    ```
 4. Fill in your own credentials/paths where the guide marks placeholders (`<YOUR_API_KEY>`, `<YOUR_PATH>`, …).
 5. Restart Claude Code (or start a new session) and invoke the skill by name.
+
+## How to contribute your own skill (newbie-friendly)
+
+This repo is something we build **together** — adding a skill is meant to be easy, even if you've never used git.
+
+**Easiest way — let your Claude do it.** Install the [`提交技能`](skills/提交技能) skill, then just say:
+
+```
+帮我把 我的新技能 提交到 agentic-skills
+```
+
+Your Claude will sync the repo, place the skill, run a quick de-identification check, create a branch, push, and open a Pull Request for you. Then a maintainer reviews and merges — you don't touch git at all.
+
+**No command line? Pure web, 3 clicks.** Open the repo → `skills/` → **Add file → Create new file**, name it `your-skill/SKILL.md`, paste your skill, then **Propose changes → Create pull request**. (Eyeball it first for any keys / real names / home paths.)
+
+> Why a Pull Request instead of pushing directly? `main` is protected so a maintainer can glance at each change before it lands — that keeps the shared library clean while we all work on it. It's not strict; PRs usually get merged quickly.
 
 ## Safety
 
