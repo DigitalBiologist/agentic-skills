@@ -54,6 +54,23 @@ If anything matches → fix and re-scan until clean. Only then `git add`.
 1. The skill file (`<name>.md` or `SKILL.md` + helpers), de-identified.
 2. A `README-配置指南.md` covering: prerequisites, env vars (with `.zshrc` template), dependencies, where to place files, and one runnable test command.
 
-## After adding a skill
+## Where your skill goes: `contrib/` → `skills/` (the promotion workflow)
 
-Add a row to the **Skills index** table in [README.md](README.md).
+We keep two tiers so the shared library stays clean while everyone gets a low-pressure place to share:
+
+| Tier | Path | Who | In README index? |
+|------|------|-----|-------------------|
+| **Staging** | `contrib/<your-name>/<skill>/` | new contributors & interns start here | No — listed in [`contrib/README.md`](contrib/README.md) |
+| **Shared library** | `skills/<skill>/` | promoted, team-approved skills | Yes — the **Skills index** in [README.md](README.md) |
+
+**The flow:**
+
+1. **Land in staging.** Put your skill in your own folder, `contrib/<your-name>/<skill>/`, and open a PR. The de-identification rule above still applies — run the grep self-check before you commit.
+2. **Share & gather feedback.** Once merged, anyone can `cp -r contrib/<your-name>/<skill> ~/.claude/commands/`, try it, and leave comments / open issues. This is the part that matters — interns get real users and real feedback, not just a merge.
+3. **Promote when the team agrees it's good.** A maintainer `git mv`s the skill from `contrib/<your-name>/` into `skills/`, adds a row to the **Skills index** in [README.md](README.md), and removes it from `contrib/README.md`. Git history (and the optional `author:` field in the skill's frontmatter) preserves who wrote it.
+
+> Why two tiers? The shared `skills/` library is organized by topic and meant for *users* — it shouldn't be fragmented by author. `contrib/` is organized by *person* so work-in-progress is easy to find, review, and tidy up. Isolation is for the process, not the finished product.
+
+## After adding a skill to `skills/` (promotion only)
+
+Add a row to the **Skills index** table in [README.md](README.md), and drop its entry from [`contrib/README.md`](contrib/README.md).
