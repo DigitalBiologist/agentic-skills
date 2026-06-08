@@ -34,6 +34,10 @@ Each skill is self-contained: its folder has everything you need plus a setup gu
 | [发布到技能库](skills/发布到技能库) <br>(skill publisher) | Meta-skill: de-identify a skill and publish it into this repo — place by convention, write the config guide, grep self-check, update this index, commit & push. Repo URL & commit identity resolve dynamically, so forks publish to their own repo. | ✅ ready |
 | [提交技能](skills/提交技能) <br>(newbie contributor) | **Newbie-friendly:** tell your Claude *"submit my skill to agentic-skills"* and it does everything — sync the repo, place the skill, quick de-id check, branch, commit, push, open a PR. No git knowledge needed; you just wait for the maintainer to merge. Falls back to fork-based PR if you're not yet a collaborator. | ✅ ready |
 
+| [虚拟细胞论文建模提取](skills/虚拟细胞论文建模提取) <br>(virtual-cell paper modeling extractor) | Extract a single E. coli / bacterial paper into modeling-ready evidence and produce an interactive markmap HTML: strains, conditions, genes, metabolites, pathways, data, model hypotheses, limitations, and parameter gaps. | ✅ ready |
+| [代谢工程改造清单生成](skills/代谢工程改造清单生成) <br>(metabolic-engineering model checklist) | Convert metabolic-engineering papers or strain designs into a modeling/FBA operation checklist and interactive markmap HTML: knockouts, overexpression, attenuation, transporters, reaction/GPR candidates, approximations, and validation readouts. | ✅ ready |
+| [虚拟细胞文献网络](skills/虚拟细胞文献网络) <br>(virtual-cell literature network) | Connect multiple E. coli / bacterial papers into an interactive markmap evidence network: shared genes, metabolites, pathways, phenotypes, support/conflict links, integrated modeling hypotheses, risks, and next modeling steps. | ✅ ready |
+
 ## How to install a skill
 
 1. Browse `skills/` and pick one.
