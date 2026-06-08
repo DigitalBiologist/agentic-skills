@@ -14,12 +14,15 @@ A *skill* (a.k.a. slash command) is a Markdown file with YAML frontmatter that l
 agentic-skills/
 ├── README.md            # this file — also the skills index
 ├── LICENSE              # MIT
-├── CONTRIBUTING.md      # de-identification checklist (read before adding a skill)
-└── skills/
-    └── <skill-name>/
-        ├── README-配置指南.md   # how to install & configure this skill
-        ├── <skill-name>.md      # the skill itself (de-identified)
-        └── ...                  # optional scripts / templates / references
+├── CONTRIBUTING.md      # de-identification + contrib→skills promotion rules (read first)
+├── skills/              # the shared library — promoted, community-approved skills
+│   └── <skill-name>/
+│       ├── README-配置指南.md   # how to install & configure this skill
+│       ├── <skill-name>.md      # the skill itself (de-identified)
+│       └── ...                  # optional scripts / templates / references
+└── contrib/             # staging area — each contributor's work-in-progress skills
+    └── <your-name>/     # your own folder; try others' skills here and leave feedback
+        └── <skill-name>/    # promoted into skills/ once the team finds it useful
 ```
 
 Each skill is self-contained: its folder has everything you need plus a setup guide.
@@ -34,9 +37,13 @@ Each skill is self-contained: its folder has everything you need plus a setup gu
 | [发布到技能库](skills/发布到技能库) <br>(skill publisher) | Meta-skill: de-identify a skill and publish it into this repo — place by convention, write the config guide, grep self-check, update this index, commit & push. Repo URL & commit identity resolve dynamically, so forks publish to their own repo. | ✅ ready |
 | [提交技能](skills/提交技能) <br>(newbie contributor) | **Newbie-friendly:** tell your Claude *"submit my skill to agentic-skills"* and it does everything — sync the repo, place the skill, quick de-id check, branch, commit, push, open a PR. No git knowledge needed; you just wait for the maintainer to merge. Falls back to fork-based PR if you're not yet a collaborator. | ✅ ready |
 
+## Contrib — community staging area
+
+Skills under [`contrib/<your-name>/`](contrib/) are **work-in-progress** contributions (this is where new contributors and interns share first). They live here so everyone can install them, try them out, and leave feedback *before* they join the shared library above. Once a skill proves genuinely useful to the team, a maintainer **promotes** it into `skills/` and adds it to the index. See [contrib/README.md](contrib/README.md) for what's currently in staging, and [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow.
+
 ## How to install a skill
 
-1. Browse `skills/` and pick one.
+1. Browse `skills/` (or `contrib/<name>/` to try a staging skill) and pick one.
 2. Read its `README-配置指南.md` for prerequisites (API keys, env vars, dependencies).
 3. Copy the skill file/folder into your `~/.claude/commands/`:
    ```bash
@@ -49,6 +56,8 @@ Each skill is self-contained: its folder has everything you need plus a setup gu
 
 This repo is something we build **together** — adding a skill is meant to be easy, even if you've never used git.
 
+**New here (e.g. an intern)?** Put your skill under your own folder, **`contrib/<your-name>/`**. That's a low-pressure space to share work — the rest of the team installs it, tries it, and leaves feedback. When people find it genuinely useful, a maintainer promotes it into the main `skills/` library. (More participation, more interaction — that's the point.)
+
 **Easiest way — let your Claude do it.** Install the [`提交技能`](skills/提交技能) skill, then just say:
 
 ```
@@ -57,7 +66,7 @@ This repo is something we build **together** — adding a skill is meant to be e
 
 Your Claude will sync the repo, place the skill, run a quick de-identification check, create a branch, push, and open a Pull Request for you. Then a maintainer reviews and merges — you don't touch git at all.
 
-**No command line? Pure web, 3 clicks.** Open the repo → `skills/` → **Add file → Create new file**, name it `your-skill/SKILL.md`, paste your skill, then **Propose changes → Create pull request**. (Eyeball it first for any keys / real names / home paths.)
+**No command line? Pure web, 3 clicks.** Open the repo → `contrib/` → **Add file → Create new file**, name it `<your-name>/your-skill/SKILL.md`, paste your skill, then **Propose changes → Create pull request**. (Eyeball it first for any keys / real names / home paths.)
 
 > Why a Pull Request instead of pushing directly? `main` is protected so a maintainer can glance at each change before it lands — that keeps the shared library clean while we all work on it. It's not strict; PRs usually get merged quickly.
 
