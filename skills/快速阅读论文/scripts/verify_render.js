@@ -5,13 +5,36 @@
 const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
+const { pathToFileURL } = require('url');
 
 const OUT = process.argv[2];
 if (!OUT) { console.error('用法: node verify_render.js <输出目录>'); process.exit(1); }
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-const URL = 'file://' + encodeURI(path.resolve(OUT, 'index.html'));
+
+// 跨平台探测 Chrome：CHROME_PATH 环境变量优先，再扫各平台常见安装位置。
+function findChrome() {
+  if (process.env.CHROME_PATH && fs.existsSync(process.env.CHROME_PATH)) return process.env.CHROME_PATH;
+  const candidates = process.platform === 'win32' ? [
+    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+    (process.env.LOCALAPPDATA || '') + '\\Google\\Chrome\\Application\\chrome.exe',
+  ] : process.platform === 'darwin' ? [
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  ] : [
+    '/usr/bin/google-chrome',
+    '/usr/bin/google-chrome-stable',
+    '/usr/bin/chromium',
+    '/usr/bin/chromium-browser',
+  ];
+  for (const p of candidates) if (fs.existsSync(p)) return p;
+  throw new Error('找不到 Chrome。请装 Chrome，或用 CHROME_PATH 环境变量指向你的 Chrome 可执行文件。');
+}
+const CHROME = findChrome();
+// pathToFileURL 自动处理 Windows 反斜杠和盘符（生成 file:///D:/... 而非 file://D:%5C...）
+const URL = pathToFileURL(path.resolve(OUT, 'index.html')).href;
 const PORT = 9333 + Math.floor(Math.random() * 300);
-const PROFILE = '/tmp/cdpprof_paperskill_' + process.pid;
+// 跨平台临时目录（Windows: %TEMP%，Unix: /tmp）
+const PROFILE = path.join(os.tmpdir(), 'cdpprof_paperskill_' + process.pid);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 const cp = spawn(CHROME, ['--headless=new','--disable-gpu','--no-sandbox',

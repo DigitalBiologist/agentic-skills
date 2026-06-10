@@ -7,19 +7,29 @@ SKILL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PDF="${1:?用法: build.sh <PDF路径> <输出目录>}"
 OUT="${2:?用法: build.sh <PDF路径> <输出目录>}"
 
-command -v pdftotext >/dev/null || { echo "❌ 缺 pdftotext，先 brew install poppler"; exit 1; }
+# 试运行 --version 探测一个真正能跑的 Python：在 Windows 上 `python3` 经常是
+# Microsoft Store 的占位符可执行文件，能被 `command -v` 命中但一运行就静默退 49。
+pick_py() {
+  for c in python3 python py; do
+    v=$("$c" --version 2>&1) && [[ "$v" == Python* ]] && { echo "$c"; return 0; }
+  done
+  return 1
+}
+PY=$(pick_py) || { echo "❌ 找不到可用的 Python 3（试过 python3 / python / py）"; exit 1; }
+
+command -v pdftotext >/dev/null || { echo "❌ 缺 pdftotext。macOS: brew install poppler；Linux: apt install poppler-utils；Windows: winget install oschwartz10612.Poppler"; exit 1; }
 [ -f "$PDF" ] || { echo "❌ 找不到 PDF: $PDF"; exit 1; }
 
 mkdir -p "$OUT/assets" "$OUT/vendor"
 cp "$PDF" "$OUT/assets/paper.pdf"
-pdftotext "$OUT/assets/paper.pdf" "$OUT/assets/fulltext.txt"
+pdftotext -enc UTF-8 "$OUT/assets/paper.pdf" "$OUT/assets/fulltext.txt"
 
 # PDF → base64 内联（关键：避免 file:// 下 PDF.js fetch 本地文件的 CORS 限制）
 { printf 'window.PDF_B64="'; base64 -i "$OUT/assets/paper.pdf" | tr -d '\n'; printf '";'; } > "$OUT/assets/paper-data.js"
 
 # vendor：PDF.js 库 + 内联 worker（file:// 下用 blob URL 起同源 worker，见 SKILL.md 踩坑②）
 cp "$SKILL_DIR/vendor/pdf.min.js" "$OUT/vendor/pdf.min.js"
-SKILL_DIR="$SKILL_DIR" OUT="$OUT" python3 - << 'PYEOF'
+SKILL_DIR="$SKILL_DIR" OUT="$OUT" "$PY" - << 'PYEOF'
 import os, json
 sd, o = os.environ['SKILL_DIR'], os.environ['OUT']
 c = open(sd+'/vendor/pdf.worker.min.js', encoding='utf-8').read()
@@ -29,7 +39,7 @@ PYEOF
 # 模板 → index.html（占位符待 Claude 填）
 cp "$SKILL_DIR/template.html" "$OUT/index.html"
 
-PAGES=$(OUT="$OUT" python3 -c "import os;print(open(os.environ['OUT']+'/assets/fulltext.txt').read().count(chr(12))+1)")
+PAGES=$(OUT="$OUT" "$PY" -c "import os;print(open(os.environ['OUT']+'/assets/fulltext.txt',encoding='utf-8').read().count(chr(12))+1)")
 echo "✅ 脚手架就绪: $OUT"
 echo "   PDF 物理页数 ≈ ${PAGES}（PDF.js 页码从 1 开始 = 物理页；注意 ≠ 印刷页脚页码）"
 echo "   下一步:"
