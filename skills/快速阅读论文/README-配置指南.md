@@ -8,12 +8,13 @@
 
 ## 1. 前置条件
 
-| 依赖 | 用途 | 安装 |
-|------|------|------|
-| **Chrome** | 打开速读网页 + 渲染验证 | 官网下载 |
-| **poppler** (`pdftotext`) | 从 PDF 抽全文 | `brew install poppler`(Linux: `apt install poppler-utils`) |
-| **Node.js** | 跑 `verify_render.js` 渲染验证 | `brew install node` |
-| **Python 3** | build.sh 内联 worker / 数页 | macOS/Linux 自带 |
+| 依赖 | 用途 | macOS | Linux (Debian/Ubuntu) | Windows |
+|------|------|-------|------|------|
+| **Chrome** | 打开速读网页 + 渲染验证 | 官网下载 | 官网下载 | 官网下载（脚本会自动找 Chrome；如装在非标准位置，用 `CHROME_PATH` 环境变量指定） |
+| **poppler** (`pdftotext`) | 从 PDF 抽全文 | `brew install poppler` | `sudo apt install poppler-utils` | `winget install oschwartz10612.Poppler`（或 choco / 手动，详见下方 Windows 段） |
+| **Node.js** | 跑 `verify_render.js` 渲染验证 | `brew install node` | `sudo apt install nodejs` | 官网安装包 或 `winget install OpenJS.NodeJS` |
+| **Python 3** | build.sh 内联 worker / 数页 | 系统自带 | 系统自带 | 装 [真 Python](https://www.python.org/downloads/) 或 miniconda（**不要靠 Windows Store 的 `python3` 别名**，那是占位符，会让脚本静默失败）|
+| **bash shell** | 跑 `build.sh` | 系统自带 | 系统自带 | **Git Bash**（装 Git for Windows 自带）；不要用 PowerShell |
 
 ## 2. 配置环境变量
 
@@ -63,16 +64,66 @@ node $SKILL/scripts/verify_render.js "~/Desktop/速读-test"
 
 ## 跨平台注意
 
-`scripts/verify_render.js` 第 11 行的 Chrome 路径默认是 **macOS**:
+脚本会**自动探测 Chrome 路径**（macOS / Linux / Windows 标准安装位置都覆盖）。如果你的 Chrome 装在非标准位置，设置环境变量 `CHROME_PATH` 指向 Chrome 可执行文件即可，例如：
 
-```js
-const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+```bash
+CHROME_PATH="/opt/google/chrome/chrome" node scripts/verify_render.js <输出目录>
 ```
 
-- **Linux**:改成 `/usr/bin/google-chrome` 或 `google-chrome-stable`
-- **Windows**:改成 `C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe`
+验证步骤只在渲染检查时用到 Chrome；生成的 `index.html` 本身用任何现代浏览器双击即可打开。
 
-验证步骤只在渲染检查时用到 Chrome;生成的 `index.html` 本身用任何现代浏览器双击即可打开。
+---
+
+## Windows 用户必读
+
+Windows 上踩过的坑（修了之后已无需手改脚本，但你的环境必须满足下列条件）：
+
+### 1. 装 poppler
+
+**推荐（最低摩擦）**：
+```powershell
+winget install oschwartz10612.Poppler
+```
+装完**重启 PowerShell / Git Bash** 让 PATH 生效，然后 `pdftotext -v` 能看到版本号即成功。
+
+**备选**：[手动下载 release](https://github.com/oschwartz10612/poppler-windows/releases)，解压到 `C:\Program Files\poppler\`，把 `C:\Program Files\poppler\Library\bin` 加进系统 PATH。
+
+### 2. 用 Git Bash 跑 build.sh（不是 PowerShell）
+
+`build.sh` 是 bash 脚本，PowerShell 跑不了。安装 [Git for Windows](https://gitforwindows.org/) 后会自带 Git Bash。
+
+```bash
+# 在 Git Bash 里
+bash /d/path/to/快速阅读论文/scripts/build.sh "/d/path/to/paper.pdf" "/d/path/to/output"
+```
+
+⚠️ **不要在 PowerShell 里调用 `bash xxx.sh`**：Windows 的 PATH 上的 `bash` 默认指向 WSL bash（`C:\Windows\system32\bash.exe`），路径风格和编码与 Git Bash 不同，会踩坑。**显式调用 Git Bash 的绝对路径**：`C:\Program Files\Git\bin\bash.exe`。
+
+### 3. 确认你的 `python` 真的是 Python（不是 Store 占位符）
+
+Windows 10/11 默认的 `python3` 命令往往是 Microsoft Store 的"占位符可执行文件"——`command -v python3` 会命中它，但一运行就立刻退出，**没有任何报错**。`build.sh` 现在会自动检测并跳过占位符，但你最好也确认本机至少有一个真 Python（推荐 [miniconda](https://docs.conda.io/en/latest/miniconda.html) 或 [python.org 官方安装包](https://www.python.org/downloads/)）：
+
+```powershell
+python --version     # 应输出 "Python 3.x.y"
+python3 --version    # 可能输出 Python 3.x.y，也可能立即退出 49（占位符）
+```
+
+只要 `python` 或 `python3` 或 `py` **任意一个**返回 `Python 3.x.x`，脚本就能用。
+
+### 4. Chrome 自动探测
+
+脚本会按下列顺序找 Chrome：
+
+1. `CHROME_PATH` 环境变量
+2. `C:\Program Files\Google\Chrome\Application\chrome.exe`
+3. `C:\Program Files (x86)\Google\Chrome\Application\chrome.exe`
+4. `%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe`
+
+都找不到时会报清晰错误。Chromium、Edge 等浏览器**不能**替代 Chrome（CDP 协议命令可能略有差异）。
+
+### 5. 路径里的空格 / 中文
+
+中文路径和空格在 Git Bash 里**只要用单引号或双引号包起来**就 OK；脚本本身已正确处理。**不要**在 PowerShell 里用 `bash -c "..."` 拼命令——PowerShell 把 UTF-16 字符串经 GBK 转给 bash.exe 会把中文字符损坏。
 
 ## 使用示例
 
