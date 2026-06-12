@@ -41,12 +41,40 @@ bash ~/.claude/commands/快速阅读论文/scripts/build.sh "<论文PDF路径>" 
 
 | kind | 用途 | 形态 |
 |---|---|---|
-| `terms` | 开篇核心词汇卡（绿底，术语名换行加粗） | `{kind:"terms",page,t:"分组名",points:[[术语名（中英）,解释],…]}` |
-| `lead` | 一句话核心 | `` {kind:"lead",page,html:`含<b>加粗</b>的HTML`} `` |
-| `card` | 普通段落讲解 | `{kind:"card",page,t:"标题",points:[[小标签,说明],…]}` |
-| `fig` | 图表讲解（黄底📊） | `{kind:"fig",page,t:"图N",points:[[panel,讲解],…]}` |
+| `terms` | 开篇核心词汇卡（绿底，术语名换行加粗） | `{kind:"terms",page,t:"分组名",points:[[术语名（中英）,解释,"英文原文短语q"],…]}` |
+| `lead` | 一句话核心 | `` {kind:"lead",page,html:`含<b>加粗</b>的HTML`,q:"英文原文短语"} `` |
+| `card` | 普通段落讲解 | `{kind:"card",page,t:"标题",points:[[小标签,说明,"英文原文短语q"],…]}` |
+| `fig` | 图表讲解（cream 底📊） | `{kind:"fig",page,t:"图N",points:[[panel,讲解,"英文原文短语q"],…]}` |
 
   开头建议放一个 `🔑 核心词汇（读前必看）` section，分「方法与工具/研究对象/核心概念」几组 `terms` 卡，把不懂就读不下去的术语先讲清楚（中英对照 + 大白话）。
+
+#### q 字段（每条 li 末尾的可选字符串）—— Hover 反向定位
+
+每个内容项**可选**带一个 `q` 字段（terms/card/fig 的 `points` 三元组里第三个元素；lead 顶层 `q` 字段）：用户 hover 那条卡片时，**左侧 PDF 自动滚到包含 q 的原文位置并黄底高亮**——把"讲解 → 原文取证"路径自动化。
+
+写好 q 是这个功能落地的关键。规则：
+
+- 从论文**英文原文**摘 5-30 字短语；论文 PDF 文本层是英文，中文同义句搜不到
+- 优先选**独特词组**：专有名词组合、数字+单位、关键动词短语
+- 避开：通用动词（show / find / propose）、希腊字母（α/β/μ）、特殊符号、跨行连字符（PDF 里行末的 `-` 后接换行常被拆开）
+- 一句话能体现该 li 的核心论点；用户 hover 看到这一句就明白「对应原文这里」
+- 缺 `q` 时不会报错——降级为现有的 📄P# 跳页行为，只是失去高亮
+
+示例：
+
+| 好 q | 为什么好 |
+|---|---|
+| `secologanin transporter SLTr` | 专有名词组合，独一无二 |
+| `38 dedicated MIA pathway genes` | 数字 + 名词，命中精确 |
+| `100 mM in idioblast` | 数字 + 单位 + 细胞类型 |
+| `tandemly duplicated paralog` | 特征词组 |
+
+| 坏 q | 为什么坏 |
+|---|---|
+| `the authors show that` | 通用，整篇命中无意义 |
+| `In this study, we` | 同上，几乎每段都有 |
+| `as expected` | 命中点散，定位不准 |
+| `α-3',4'-Anhydrovinblastine` | 含特殊字符，PDF 文本层可能不一致 |
 
 ### 4. 验证（必做，别靠肉眼假设）
 

@@ -31,10 +31,16 @@
   main{display:flex;height:100vh}
   #pdf-pane{width:55%;overflow-y:auto;background:var(--bg);padding:14px 0;text-align:center}
   #pdf-pane .pg{margin:0 auto 14px;box-shadow:0 1px 6px rgba(0,0,0,.16);background:#fff;
-                position:relative;display:inline-block;width:96%}
+                position:relative;display:inline-block;width:96%;scroll-margin-top:14px}
   #pdf-pane canvas{display:block;width:100%;height:auto;border-radius:2px}
   #pdf-pane .pgnum{position:absolute;top:6px;left:6px;font-size:10px;color:#fff;
                    background:rgba(0,0,0,.45);padding:1px 6px;border-radius:8px}
+  /* PDF.js 文本层：默认透明覆盖在 canvas 上；hover 命中时局部显黄底 */
+  .pg .tl{position:absolute;left:0;top:0;width:100%;height:100%;
+          opacity:0;pointer-events:none;line-height:1;--scale-factor:1}
+  .pg .tl > span{position:absolute;white-space:pre;transform-origin:0 0;color:transparent}
+  .pg .tl.show-hl{opacity:1}
+  .pg .tl > span.hover-hl{background:rgba(255,235,59,0.55);border-radius:2px;color:transparent}
   #resizer{width:6px;cursor:col-resize;background:linear-gradient(var(--line),var(--line));
            flex:0 0 6px}
   #resizer:hover{background:var(--accent)}
@@ -42,13 +48,14 @@
   #guide-body{padding:6px 16px 80px}
   /* ---- guide cards ---- */
   .sec-h{font-size:16px;font-weight:700;color:var(--accent);margin:22px 0 10px;
-         padding-bottom:5px;border-bottom:2px solid var(--accent-soft);display:flex;align-items:center;gap:7px}
+         padding-bottom:5px;border-bottom:2px solid var(--line);display:flex;align-items:center;gap:7px;
+         scroll-margin-top:56px}
   .sec-h:first-child{margin-top:0}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:9px;
-        padding:11px 13px;margin-bottom:11px;position:relative}
+        padding:11px 13px;margin-bottom:11px;position:relative;scroll-margin-top:56px}
   .card.fig{background:var(--fig);border-color:var(--fig-line)}
   .card .top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:5px}
-  .card .t{font-size:15.5px;font-weight:600;color:var(--ink)}
+  .card .t{font-size:15.5px;font-weight:700;color:var(--ink)}
   .card.fig .t::before{content:"📊 ";}
   .badge{flex:0 0 auto;font-size:12px;font-weight:600;color:#fff;background:var(--accent);
          padding:2px 8px;border-radius:10px;cursor:pointer;white-space:nowrap;text-decoration:none}
@@ -58,14 +65,15 @@
   .card li{font-size:15px;color:#2b3138;margin:6px 0;padding-left:16px;position:relative}
   .card li::before{content:"";position:absolute;left:3px;top:10px;width:5px;height:5px;
                    border-radius:50%;background:var(--accent)}
-  .card li .k{font-weight:600;color:var(--accent);margin-right:4px}
+  /* 统一强调：所有粗体一种颜色（蓝），不再用绿、黑、默认混搭 */
+  .card li .k,.card .tn,.lead b,.card b,.card.terms li.term b{font-weight:700;color:var(--accent)}
+  .card li .k{margin-right:4px}
   .lead{font-size:15.5px;color:#2b3138;line-height:1.65}
-  .lead b{color:var(--accent)}
-  /* 词汇卡 */
-  .card.terms{background:#f1f8f3;border-color:#cfe6d3}
+  /* 词汇卡：背景定义类型，文字色不再独立硬编码 */
+  .card.terms{background:#f4faf6;border-color:#dceee0}
   .card li.term{padding-left:0;margin:11px 0}
   .card li.term::before{display:none}
-  .tn{display:block;font-weight:700;color:#217a4b;font-size:1.03em;margin-bottom:2px}
+  .tn{display:block;font-size:1.03em;margin-bottom:2px}
   .flash{animation:fl 1.4s ease}
   @keyframes fl{0%,40%{background:var(--hl)}100%{}}
   /* loading */
@@ -99,18 +107,21 @@
 const SECTIONS = [
  // ===== 在此填入本论文的中文速读讲解（Claude 精读后撰写） =====
  // 每个 section = {name:"区名", items:[...]}；item.kind ∈ 'terms' | 'lead' | 'card' | 'fig'
- //  terms 开篇核心词汇卡（绿底）: {kind:"terms", page, t:"分组名", points:[[术语名（中英）, 大白话解释], ...]}
- //  lead  一句话核心            : {kind:"lead",  page, html:`可含 <b>加粗</b> 的 HTML`}
- //  card  普通段落讲解          : {kind:"card",  page, t:"标题", points:[[小标签, 说明], ...]}
- //  fig   图表讲解（黄底📊）     : {kind:"fig",   page, t:"图N", points:[[panel如"A 分图", 讲解], ...]}
+ //  terms 开篇核心词汇卡（绿底）: {kind:"terms", page, t:"分组名", points:[[术语名（中英）, 大白话解释, "英文原文短语q"], ...]}
+ //  lead  一句话核心            : {kind:"lead",  page, html:`可含 <b>加粗</b> 的 HTML`, q:"英文原文短语"}
+ //  card  普通段落讲解          : {kind:"card",  page, t:"标题", points:[[小标签, 说明, "英文原文短语q"], ...]}
+ //  fig   图表讲解(cream 底📊)  : {kind:"fig",   page, t:"图N", points:[[panel如"A 分图", 讲解, "英文原文短语q"], ...]}
  //  page = 该内容对应的 PDF 物理页码（点右上角 📄P# 跳到左侧该页）
- //  ⚠️ 内容里的引号一律用中文「」或弯引号 “” —— 禁用英文直双引号，否则会截断 JS 字符串
+ //  q = 可选，5-30 字的英文原文特征短语；hover 该条目时，左侧 PDF 自动滚到原文位置并黄底高亮。
+ //       好：「secologanin transporter SLTr」「100 mM in idioblast」「38 dedicated MIA pathway genes」
+ //       坏：「the authors show」「in this study, we」「these results」(通用，命中无意义)
+ //  ⚠️ 内容里的引号一律用中文「」或弯引号 "" —— 禁用英文直双引号，否则会截断 JS 字符串
  {name:"🔑 核心词汇（读前必看）", items:[
    {kind:"terms", page:1, t:"方法与工具", points:[
-     ["术语名（English）","一句话把这个术语讲清楚，通俗、具体，避免英文直双引号。"]]},
+     ["术语名（English）","一句话把这个术语讲清楚，通俗、具体，避免英文直双引号。","English phrase"]]},
  ]},
  {name:"📌 一句话核心 & 封面", items:[
-   {kind:"lead", page:1, html:`本文一句话核心，可用 <b>加粗</b> 强调关键词。`},
+   {kind:"lead", page:1, html:`本文一句话核心，可用 <b>加粗</b> 强调关键词。`, q:"key English phrase"},
  ]},
  // …… 继续按 摘要/引言/结果各部分/讨论/方法 补充 section、逐图一张 fig 卡 ……
 ];
@@ -118,24 +129,34 @@ const SECTIONS = [
 /* ============ 渲染右侧讲解 ============ */
 const guide = document.getElementById('guide-body');
 const nav = document.getElementById('nav');
+const navAnchor = document.getElementById('pageind');  // chip 始终插入到这个之前 → 保持 SECTIONS 顺序
+const escQ = s => String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
 SECTIONS.forEach((sec, si)=>{
   const h = document.createElement('div');
   h.className='sec-h'; h.id='sec-'+si; h.textContent=sec.name;
   guide.appendChild(h);
-  // nav chip
+  // nav chip：每次都插到 #pageind 之前（不是 nav.firstChild，否则会反序）
   const chip=document.createElement('span');
   chip.className='chip'; chip.textContent=sec.name.replace(/^[^ ]+ /,'').slice(0,8);
   chip.onclick=()=>h.scrollIntoView({behavior:'smooth',block:'start'});
-  nav.insertBefore(chip, nav.firstChild);
+  nav.insertBefore(chip, navAnchor);
   sec.items.forEach(it=>{
     const c=document.createElement('div');
     c.className='card'+(it.kind==='fig'?' fig':'')+(it.kind==='terms'?' terms':'');
-    if(it.kind==='lead'){ c.className='card'; c.innerHTML=`<div class="top"><div class="t">核心一句话</div><a class="badge" data-pg="${it.page}">📄 P${it.page}</a></div><div class="lead">${it.html}</div>`; }
+    if(it.kind==='lead'){
+      const qAttr = it.q ? ` data-q="${escQ(it.q)}"` : '';
+      c.className='card';
+      c.innerHTML=`<div class="top"><div class="t">核心一句话</div><a class="badge" data-pg="${it.page}">📄 P${it.page}</a></div><div class="lead"${qAttr}>${it.html}</div>`;
+    }
     else{
       let inner=`<div class="top"><div class="t">${it.t}</div><a class="badge" data-pg="${it.page}">📄 P${it.page}</a></div>`;
-      inner+='<ul>'+it.points.map(p=> it.kind==='terms'
-        ? `<li class="term"><span class="tn">${p[0]}</span>${p[1]}</li>`
-        : `<li><span class="k">${p[0]}</span>${p[1]}</li>`).join('')+'</ul>';
+      inner+='<ul>'+it.points.map(p=>{
+        // 兼容旧二元组 [a,b]：第三个元素是可选的 q，从原文 PDF 摘的英文短语
+        const qAttr = p[2] ? ` data-q="${escQ(p[2])}"` : '';
+        return it.kind==='terms'
+          ? `<li class="term"${qAttr}><span class="tn">${p[0]}</span>${p[1]}</li>`
+          : `<li${qAttr}><span class="k">${p[0]}</span>${p[1]}</li>`;
+      }).join('')+'</ul>';
       c.innerHTML=inner;
     }
     guide.appendChild(c);
@@ -183,9 +204,24 @@ async function renderAll(){
     pageEls.push(wrap);
     await page.render({canvasContext:cv.getContext('2d'), viewport:vp,
                        transform:dpr!==1?[dpr,0,0,dpr,0,0]:null}).promise;
+    // 文本层：透明覆盖在 canvas 上，hover 时给命中 span 上黄底
+    try {
+      const tc = await page.getTextContent();
+      const tl = document.createElement('div');
+      tl.className='tl';
+      tl.style.setProperty('--scale-factor', scale);
+      wrap.appendChild(tl);
+      const tlSpans = [];
+      const tlItems = [];
+      await pdfjsLib.renderTextLayer({
+        textContentSource: tc, container: tl, viewport: vp,
+        textDivs: tlSpans, textContentItemsStr: tlItems,
+      }).promise;
+      wrap._tl = { spans: tlSpans, items: tlItems, fullText: tlItems.join('') };
+    } catch(e) { console.warn('text layer page', n, 'failed:', e.message); }
     pageind.textContent=`第 ${n}/${pdfDoc.numPages} 页`;
   }
-  pageind.textContent=`共 ${pdfDoc.numPages} 页 · 点右侧 📄P# 跳转`;
+  pageind.textContent=`共 ${pdfDoc.numPages} 页 · 点右侧 📄P# 跳转 · hover 右侧短语→定位左侧原文`;
   trackPage();
 }
 // 滚动时更新"当前页"
@@ -201,6 +237,54 @@ renderAll().catch(err=>{
   const l=document.getElementById('load');
   if(l) l.innerHTML='<div style="color:#b00;font-size:13px;padding:20px;text-align:center">PDF 渲染失败：'+err.message+'<br><br>请用 Chrome 打开本文件夹下的 index.html。</div>';
   console.error(err);
+});
+
+/* ============ Hover 反向定位：右侧讲解 [data-q] → 左侧 PDF 滚到原文 + 黄底高亮 ============ */
+function clearHL(){
+  document.querySelectorAll('.tl.show-hl').forEach(t=>t.classList.remove('show-hl'));
+  document.querySelectorAll('.tl > span.hover-hl').forEach(s=>s.classList.remove('hover-hl'));
+}
+function findAndHL(q){
+  if(!q) return;
+  clearHL();
+  // 跨页搜：第一个命中即停
+  for(const wrap of pageEls){
+    const tl=wrap._tl; if(!tl||!tl.fullText) continue;
+    const pos=tl.fullText.indexOf(q);
+    if(pos<0) continue;
+    // 把字符 offset 映射回 item 索引
+    let acc=0,startI=-1,endI=-1;
+    for(let i=0;i<tl.items.length;i++){
+      const next=acc+tl.items[i].length;
+      if(startI<0 && pos<next) startI=i;
+      if(endI<0 && pos+q.length<=next){ endI=i; break; }
+      acc=next;
+    }
+    if(startI<0) continue;
+    if(endI<0) endI=tl.items.length-1;
+    const tlEl=wrap.querySelector('.tl');
+    if(tlEl) tlEl.classList.add('show-hl');
+    for(let i=startI;i<=endI;i++){
+      tl.spans[i] && tl.spans[i].classList.add('hover-hl');
+    }
+    tl.spans[startI] && tl.spans[startI].scrollIntoView({behavior:'smooth',block:'center'});
+    return;
+  }
+}
+// 委托：hover 任何带 data-q 的元素就触发
+guide.addEventListener('mouseover', e=>{
+  const el=e.target.closest('[data-q]'); if(!el) return;
+  // 防抖：进入子元素时 mouseover 仍触发，所以同 q 不重做
+  if(el._lastQ===el.dataset.q) return;
+  el._lastQ=el.dataset.q;
+  findAndHL(el.dataset.q);
+});
+guide.addEventListener('mouseout', e=>{
+  const el=e.target.closest('[data-q]'); if(!el) return;
+  // 只有真正离开整个 [data-q] 元素时才清
+  if(el.contains(e.relatedTarget)) return;
+  el._lastQ=null;
+  clearHL();
 });
 
 /* ============ 可拖动分隔条 ============ */
