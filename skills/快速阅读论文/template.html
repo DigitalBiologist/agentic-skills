@@ -205,6 +205,7 @@ async function renderAll(){
     await page.render({canvasContext:cv.getContext('2d'), viewport:vp,
                        transform:dpr!==1?[dpr,0,0,dpr,0,0]:null}).promise;
     // 文本层：透明覆盖在 canvas 上，hover 时给命中 span 上黄底
+    // 只保留 DOM spans（textDivs）——index 在第一次 hover 时懒构建（buildIndex）
     try {
       const tc = await page.getTextContent();
       const tl = document.createElement('div');
@@ -212,16 +213,15 @@ async function renderAll(){
       tl.style.setProperty('--scale-factor', scale);
       wrap.appendChild(tl);
       const tlSpans = [];
-      const tlItems = [];
       await pdfjsLib.renderTextLayer({
         textContentSource: tc, container: tl, viewport: vp,
-        textDivs: tlSpans, textContentItemsStr: tlItems,
+        textDivs: tlSpans,
       }).promise;
-      wrap._tl = { spans: tlSpans, items: tlItems, fullText: tlItems.join('') };
+      wrap._tl = { spans: tlSpans /* index 懒构建于 findAndHL */ };
     } catch(e) { console.warn('text layer page', n, 'failed:', e.message); }
     pageind.textContent=`第 ${n}/${pdfDoc.numPages} 页`;
   }
-  pageind.textContent=`共 ${pdfDoc.numPages} 页 · 点右侧 📄P# 跳转 · hover 右侧短语→定位左侧原文`;
+  pageind.textContent=`共 ${pdfDoc.numPages} 页 · hover 右侧短语→定位左侧原文`;
   trackPage();
 }
 // 滚动时更新"当前页"
@@ -239,49 +239,107 @@ renderAll().catch(err=>{
   console.error(err);
 });
 
-/* ============ Hover 反向定位：右侧讲解 [data-q] → 左侧 PDF 滚到原文 + 黄底高亮 ============ */
+/* ============ Hover 反向定位：右侧讲解 [data-q] → 左侧 PDF 滚到原文 + 黄底高亮 ============
+   设计：
+   - 用卡片所属页 (card.badge.data-pg) 作为 hintPage，按距离 hintPage 扩散搜索
+   - 索引构建从 DOM spans 的 textContent 读真实文字（不依赖 PDF.js items 元数据）
+   - 归一化：去 U+00AD soft hyphen、折叠空白、相邻 span 间补一个空格、case-insensitive
+============================================================================ */
+
+// 给每页一次性构建归一化检索串和 (字符 offset → spanIdx) 映射
+function buildIndex(spans){
+  let s = '';
+  const map = [];          // map[k] = {spanIdx, charInSpan} 对应归一化串第 k 个字符
+  let lastCh = '';
+  for(let i=0;i<spans.length;i++){
+    const t = (spans[i] && spans[i].textContent) || '';
+    for(let j=0;j<t.length;j++){
+      let c = t[j];
+      if(c === '­') continue;              // 去 soft hyphen
+      if(/\s/.test(c)){
+        c = ' ';
+        if(lastCh === ' ') continue;            // 折叠空白
+      }
+      s += c;
+      map.push({spanIdx:i, charInSpan:j});
+      lastCh = c;
+    }
+    // 相邻 span 之间补一个空格，避免邻接词被搜成一个长词
+    if(i < spans.length - 1 && lastCh !== ' '){
+      s += ' ';
+      map.push({spanIdx:i, charInSpan:Math.max(0, t.length-1)});
+      lastCh = ' ';
+    }
+  }
+  return { norm:s, normLower:s.toLowerCase(), map };
+}
+
+function normQ(q){
+  return String(q).replace(/­/g,'').replace(/\s+/g,' ').trim().toLowerCase();
+}
+
+// 按距离 hintPage 扩散：center, center-1, center+1, center-2, center+2, ...
+function pageSearchOrder(n, center0){
+  const order = [];
+  const c = Math.max(0, Math.min(n-1, center0|0));
+  order.push(c);
+  for(let off=1; off<n; off++){
+    if(c-off >= 0) order.push(c-off);
+    if(c+off < n) order.push(c+off);
+  }
+  return order;
+}
+
 function clearHL(){
   document.querySelectorAll('.tl.show-hl').forEach(t=>t.classList.remove('show-hl'));
   document.querySelectorAll('.tl > span.hover-hl').forEach(s=>s.classList.remove('hover-hl'));
+  if(pdfDoc) pageind.textContent = `共 ${pdfDoc.numPages} 页 · hover 右侧短语→定位左侧原文`;
 }
-function findAndHL(q){
+
+function findAndHL(q, hintPage){
   if(!q) return;
   clearHL();
-  // 跨页搜：第一个命中即停
-  for(const wrap of pageEls){
-    const tl=wrap._tl; if(!tl||!tl.fullText) continue;
-    const pos=tl.fullText.indexOf(q);
-    if(pos<0) continue;
-    // 把字符 offset 映射回 item 索引
-    let acc=0,startI=-1,endI=-1;
-    for(let i=0;i<tl.items.length;i++){
-      const next=acc+tl.items[i].length;
-      if(startI<0 && pos<next) startI=i;
-      if(endI<0 && pos+q.length<=next){ endI=i; break; }
-      acc=next;
-    }
-    if(startI<0) continue;
-    if(endI<0) endI=tl.items.length-1;
-    const tlEl=wrap.querySelector('.tl');
+  const nq = normQ(q);
+  if(!nq) return;
+  const order = pageSearchOrder(pageEls.length, (hintPage|0) - 1);
+  for(const idx of order){
+    const wrap = pageEls[idx];
+    const tl = wrap && wrap._tl;
+    if(!tl || !tl.spans || !tl.spans.length) continue;
+    if(!tl.index) tl.index = buildIndex(tl.spans);
+    const pos = tl.index.normLower.indexOf(nq);
+    if(pos < 0) continue;
+    const startMap = tl.index.map[pos];
+    const endMap   = tl.index.map[Math.min(pos + nq.length - 1, tl.index.map.length - 1)];
+    if(!startMap || !endMap) continue;
+    const startSpan = startMap.spanIdx;
+    const endSpan   = endMap.spanIdx;
+    const tlEl = wrap.querySelector('.tl');
     if(tlEl) tlEl.classList.add('show-hl');
-    for(let i=startI;i<=endI;i++){
+    for(let i=startSpan; i<=endSpan; i++){
       tl.spans[i] && tl.spans[i].classList.add('hover-hl');
     }
-    tl.spans[startI] && tl.spans[startI].scrollIntoView({behavior:'smooth',block:'center'});
+    tl.spans[startSpan] && tl.spans[startSpan].scrollIntoView({behavior:'smooth', block:'center'});
+    pageind.textContent = `↳ 命中第 ${idx+1} 页`;
     return;
   }
+  // 未找到：不静默
+  pageind.textContent = `↳ 原文未找到「${q.length>20 ? q.slice(0,20)+'…' : q}」`;
 }
+
 // 委托：hover 任何带 data-q 的元素就触发
 guide.addEventListener('mouseover', e=>{
   const el=e.target.closest('[data-q]'); if(!el) return;
-  // 防抖：进入子元素时 mouseover 仍触发，所以同 q 不重做
   if(el._lastQ===el.dataset.q) return;
   el._lastQ=el.dataset.q;
-  findAndHL(el.dataset.q);
+  // 用卡片所属页码作为 hintPage（badge.dataset.pg 是卡片的 page）
+  const card = el.closest('.card');
+  const badge = card && card.querySelector('.badge[data-pg]');
+  const hintPage = badge ? parseInt(badge.dataset.pg, 10) : 1;
+  findAndHL(el.dataset.q, hintPage);
 });
 guide.addEventListener('mouseout', e=>{
   const el=e.target.closest('[data-q]'); if(!el) return;
-  // 只有真正离开整个 [data-q] 元素时才清
   if(el.contains(e.relatedTarget)) return;
   el._lastQ=null;
   clearHL();
