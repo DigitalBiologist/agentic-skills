@@ -91,9 +91,12 @@
   </div>
 </main>
 
-<script src="./vendor/pdf.min.js"></script>
-<script src="./assets/paper-data.js"></script>
-<script src="./vendor/pdf.worker.inline.js"></script>
+<!-- ═══════ PDF.js 库（build.sh 内联填入，纯离线，零 CDN 依赖） ═══════ -->
+<script>__PDFJS_CODE__</script>
+<!-- ═══════ 论文 PDF base64 数据（build.sh 内联填入，绕 file:// CORS） ═══════ -->
+<script>__PAPER_DATA__</script>
+<!-- ═══════ PDF.js Worker 源码（build.sh 内联填入 → 运行时 Blob URL → 同源 worker） ═══════ -->
+<script>__WORKER_CODE__</script>
 <script>
 /* ============ 中文速读讲解（精读后人工撰写） ============ */
 const SECTIONS = [
@@ -104,7 +107,7 @@ const SECTIONS = [
  //  card  普通段落讲解          : {kind:"card",  page, t:"标题", points:[[小标签, 说明], ...]}
  //  fig   图表讲解（黄底📊）     : {kind:"fig",   page, t:"图N", points:[[panel如"A 分图", 讲解], ...]}
  //  page = 该内容对应的 PDF 物理页码（点右上角 📄P# 跳到左侧该页）
- //  ⚠️ 内容里的引号一律用中文「」或弯引号 “” —— 禁用英文直双引号，否则会截断 JS 字符串
+ //  ⚠️ 内容里的引号一律用中文「」或弯引号 "" —— 禁用英文直双引号，否则会截断 JS 字符串
  {name:"🔑 核心词汇（读前必看）", items:[
    {kind:"terms", page:1, t:"方法与工具", points:[
      ["术语名（English）","一句话把这个术语讲清楚，通俗、具体，避免英文直双引号。"]]},

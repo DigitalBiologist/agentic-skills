@@ -5,36 +5,65 @@
 const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
-const os = require('os');
-const { pathToFileURL } = require('url');
 
 const OUT = process.argv[2];
 if (!OUT) { console.error('用法: node verify_render.js <输出目录>'); process.exit(1); }
 
-// 跨平台探测 Chrome：CHROME_PATH 环境变量优先，再扫各平台常见安装位置。
+// 跨平台查找 Chrome/Chromium 可执行文件（不再硬编码 macOS 路径）
 function findChrome() {
-  if (process.env.CHROME_PATH && fs.existsSync(process.env.CHROME_PATH)) return process.env.CHROME_PATH;
-  const candidates = process.platform === 'win32' ? [
-    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-    (process.env.LOCALAPPDATA || '') + '\\Google\\Chrome\\Application\\chrome.exe',
-  ] : process.platform === 'darwin' ? [
-    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-  ] : [
-    '/usr/bin/google-chrome',
-    '/usr/bin/google-chrome-stable',
-    '/usr/bin/chromium',
-    '/usr/bin/chromium-browser',
-  ];
-  for (const p of candidates) if (fs.existsSync(p)) return p;
-  throw new Error('找不到 Chrome。请装 Chrome，或用 CHROME_PATH 环境变量指向你的 Chrome 可执行文件。');
+  const platform = process.platform;
+  const candidates = [];
+  if (platform === 'win32') {
+    candidates.push(
+      'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+      'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+      'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+      'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+    );
+    // 也检查 LOCALAPPDATA
+    const localAppData = process.env.LOCALAPPDATA || '';
+    if (localAppData) {
+      candidates.push(
+        path.join(localAppData, 'Google\\Chrome\\Application\\chrome.exe'),
+        path.join(localAppData, 'Microsoft\\Edge\\Application\\msedge.exe'),
+      );
+    }
+  } else if (platform === 'darwin') {
+    candidates.push(
+      '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+      '/Applications/Chromium.app/Contents/MacOS/Chromium',
+      '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
+    );
+  } else {
+    // Linux / other Unix
+    candidates.push('google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser', 'microsoft-edge');
+  }
+  for (const c of candidates) {
+    try {
+      if (fs.existsSync(c)) return c;
+    } catch (_) { /* skip */ }
+  }
+  // PATH 回退：尝试 which
+  const { execSync } = require('child_process');
+  for (const bin of ['google-chrome', 'chromium', 'chromium-browser', 'chrome', 'google-chrome-stable']) {
+    try {
+      const found = execSync((platform === 'win32' ? 'where ' : 'which ') + bin, { encoding: 'utf8', stdio: ['ignore','pipe','ignore'] }).trim().split('\n')[0];
+      if (found && fs.existsSync(found)) return found;
+    } catch (_) { /* skip */ }
+  }
+  return null;
 }
+
 const CHROME = findChrome();
-// pathToFileURL 自动处理 Windows 反斜杠和盘符（生成 file:///D:/... 而非 file://D:%5C...）
-const URL = pathToFileURL(path.resolve(OUT, 'index.html')).href;
+if (!CHROME) {
+  console.error('❌ 找不到 Chrome/Chromium 浏览器。请安装 Chrome 或设置 CHROME_PATH 环境变量。');
+  process.exit(1);
+}
+console.log('Chrome:', CHROME);
+
+const URL = 'file://' + encodeURI(path.resolve(OUT, 'index.html'));
 const PORT = 9333 + Math.floor(Math.random() * 300);
-// 跨平台临时目录（Windows: %TEMP%，Unix: /tmp）
-const PROFILE = path.join(os.tmpdir(), 'cdpprof_paperskill_' + process.pid);
+const PROFILE = '/tmp/cdpprof_paperskill_' + process.pid;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 const cp = spawn(CHROME, ['--headless=new','--disable-gpu','--no-sandbox',
