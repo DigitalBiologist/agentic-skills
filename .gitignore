@@ -16,3 +16,7 @@ secrets/
 *.key
 *.pem
 id_rsa*
+
+# Python
+__pycache__/
+*.pyc

@@ -36,6 +36,7 @@ Each skill is self-contained: its folder has everything you need plus a setup gu
 | [技能分享](skills/技能分享) <br>(skill de-identifier) | Meta-skill: de-identify and package any Claude Code skill into a self-contained folder — scans for API keys / passwords / usernames / emails / org / internal IPs, replaces with placeholders, grep self-checks. Share or open-source any skill safely. | ✅ ready |
 | [发布到技能库](skills/发布到技能库) <br>(skill publisher) | Meta-skill: de-identify a skill and publish it into this repo — place by convention, write the config guide, grep self-check, update this index, commit & push. Repo URL & commit identity resolve dynamically, so forks publish to their own repo. | ✅ ready |
 | [提交技能](skills/提交技能) <br>(newbie contributor) | **Newbie-friendly:** tell your Claude *"submit my skill to agentic-skills"* and it does everything — sync the repo, place the skill, quick de-id check, branch, commit, push, open a PR. No git knowledge needed; you just wait for the maintainer to merge. Falls back to fork-based PR if you're not yet a collaborator. | ✅ ready |
+| [西湖大学PPT单页-v2](skills/西湖大学PPT单页-v2) <br>(slide-page generator) | Render a content-only layout file into a 4K single-page conference slide PNG: fixed wrapper + your content → image-to-image (reference template inlined locally, no image host) → composite (signature arc / dual logo / page number). A general, project-agnostic workflow — bring your own image-gen API key, and swap in your own lab template if you like. | ✅ ready |
 
 ## Contrib — community staging area
 

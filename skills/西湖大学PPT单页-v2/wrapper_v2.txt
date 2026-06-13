@@ -1,0 +1,91 @@
+Generate a high-resolution 16:9 academic conference presentation slide based on the provided Westlake University / Guomics style template image. The output must look like a clean academic slide built ON TOP OF the template, preserving every template element exactly as-is. The slide content must follow the LAYOUT specification provided below — render every Chinese character exactly as written, do not paraphrase or summarize.
+
+================================================================
+PART A — TEMPLATE PRESERVATION (NON-NEGOTIABLE)
+================================================================
+
+The reference template image has the following decorative elements that MUST remain intact:
+
+1. WHITE BACKGROUND
+   - The entire slide background is pure white (#ffffff). Most of the slide is white space.
+   - DO NOT render any colored banner, header bar, or solid color block across the top of the slide.
+   - The headline area sits DIRECTLY ON THE WHITE BACKGROUND. Do NOT wrap the headline inside a navy/blue/dark rectangle.
+
+2. TOP-LEFT — ORANGE QUARTER-CIRCLE WEDGE
+   - A solid orange (#f08a1c) quarter-circle wedge anchored at the very top-left corner. Roughly 10% of slide width across, with curved edge sweeping down-right.
+   - This is the v2 signature element. Keep it visible. Do NOT cover it with text or content.
+
+3. TOP CENTER — NO DIVIDER LINE
+   - Do NOT draw any horizontal divider line or rule under the headline. The headline sits on white space and the main content simply follows below it, with NO separating line. (This template variant intentionally has no divider line.)
+
+4. TOP-RIGHT — TWO LOGOS SIDE BY SIDE
+   - Left: orange Westlake University "W" shield (orange #f08a1c arch + blue W shield)
+   - Right: blue Guomics-style hexagonal shield logo
+   - Both must remain. (NOTE: a post-processing program will pixel-perfectly overlay these logos from the source template after NBP generation, so even if your rendering is imperfect, do not omit them — leave them as the template shows.)
+
+5. BOTTOM-RIGHT — DARK BLUE CURVED WEDGE
+   - A dark blue (#15305e) curved/triangular wedge anchored at the bottom-right corner.
+
+6. NO PAGE NUMBER
+   - Do NOT render any page number, page digit, or "Page N" text anywhere on the slide. The page number is added by a separate post-processing program.
+
+7. NO ADDED DECORATIVE ELEMENTS
+   - Do NOT add parallelograms, world map watermarks, brand bars, "西湖大學" calligraphy, "WESTLAKE UNIVERSITY" footer text, or any decorative element not in the v2 template.
+   - The v2 template is intentionally minimal: orange wedge + 2 logos + blue wedge + white space. That's it. (NO divider line.)
+
+================================================================
+PART B — CONTENT LAYOUT (PAGE-SPECIFIC, EDIT THIS PART)
+================================================================
+
+The following Chinese-annotated layout specification describes EXACTLY what to render in the content area of this slide. Render every Chinese character as written. The 【】 bracket annotations are formatting hints for you (font size, color, position), not visible text. The content sits below the headline area and ABOVE the bottom-right blue wedge.
+
+────────── BEGIN CONTENT SPEC ──────────
+
+{{CONTENT}}
+
+────────── END CONTENT SPEC ──────────
+
+================================================================
+PART C — STRICT TEXT RENDERING REQUIREMENTS
+================================================================
+
+- ALL Chinese characters must be rendered crisply, sharply, with correct stroke shapes — no garbled glyphs
+- DO NOT invent, paraphrase, translate, abbreviate, or omit any Chinese text from the content spec above
+- DO NOT change any year, name, term, number, percentage, or proper noun
+- DO NOT add any extra page numbers, watermarks, "draft", "sample", or placeholder text
+- DO NOT render any of the 【】 bracket annotations (those are formatting hints, not text)
+- DO NOT render any English structural meta-labels such as "Title:", "Subtitle:", "Headline:", "Section:", "Left Column", "Right Column", "Box", "Node", "Caption", "BEGIN CONTENT SPEC", "END CONTENT SPEC"
+- DO NOT render any Chinese structural meta-labels such as "主标题", "副标题", "小标题", "章节"
+- DO NOT render the literal placeholder text "Write here your subtitle"
+
+================================================================
+PART D — VISUAL STYLE
+================================================================
+
+- Premium academic conference style, comparable to top-tier biology talks (Nature/Cell/Science conference level)
+- Information-dense but clean — generous spacing, no clutter
+- Typography: bold sans-serif for Chinese (similar to PingFang SC / Source Han Sans), Inter or similar for English
+- Color palette restricted to:
+    navy #15305e   (primary headers, structural elements)
+    orange #f08a1c (key numbers, emphasis, sparingly)
+    charcoal #333  (body text)
+    white #ffffff  (background)
+    light gray #f2f2f2 (subtle row backgrounds, cards)
+    crimson #c0392b (only for explicit warning callouts when the content spec asks for it)
+- 16:9 aspect ratio, 4K quality, sharp edges, crisp text
+
+================================================================
+PART E — GLOBAL NEGATIVE INSTRUCTIONS (apply to every page)
+================================================================
+
+In addition to any page-specific 禁止 list inside the content spec above, the following are forbidden on EVERY slide:
+
+- Any navy/blue/dark colored rectangle wrapping the headline at the top of the slide
+- Any colored block replacing the top white area
+- Any covering or obscuring of the orange top-left quarter-circle wedge
+- Any covering or obscuring of the bottom-right blue wedge
+- Any white digit (page number) on the bottom-right blue wedge
+- Any project/grant-specific "标准对应" / compliance / form-template badge that the content spec did not explicitly ask for
+- Any "详见 P0X" cross-reference text
+- Any "视觉建议" / "讲者引用源" / "draft" / "sample" meta-annotation
+- Any thin horizontal divider / rule line under the headline (this variant has NO divider line)
