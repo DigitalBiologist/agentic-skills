@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>脑图 · __TITLE__</title>
+<style>
+  /* ========== 全局 ========== */
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+    background:#f6f7f9;color:#1c2127;
+  }
+
+  /* ========== 加载动画 ========== */
+  #loading{
+    position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+    text-align:center;color:#5b6470;z-index:100;
+  }
+  #loading .spin{
+    width:32px;height:32px;margin:0 auto 12px;
+    border:3px solid #e2e6eb;border-top-color:#2b6cb0;
+    border-radius:50%;animation:sp 0.8s linear infinite;
+  }
+  @keyframes sp{to{transform:rotate(360deg)}}
+
+  /* ========== 工具栏 ========== */
+  #toolbar{
+    display:none;
+    position:fixed;top:0;left:0;right:0;z-index:50;
+    padding:10px 18px;gap:8px;align-items:center;
+    flex-wrap:wrap;
+    background:rgba(255,255,255,0.92);
+    backdrop-filter:blur(8px);
+    -webkit-backdrop-filter:blur(8px);
+    border-bottom:1px solid #e2e6eb;
+    box-shadow:0 2px 8px rgba(0,0,0,0.06);
+  }
+  #toolbar button{
+    font-size:13px;padding:4px 13px;border:1px solid #d0d5db;
+    border-radius:6px;background:#fff;color:#374151;
+    cursor:pointer;user-select:none;white-space:nowrap;
+    line-height:1.6;transition:all 0.15s;
+  }
+  #toolbar button:hover{background:#eaf2fb;border-color:#2b6cb0;color:#2b6cb0}
+  #toolbar button.primary{background:#2b6cb0;color:#fff;border-color:#2b6cb0}
+  #toolbar button.primary:hover{background:#1f4e7a}
+  #toolbar button.warn{background:#d14343;color:#fff;border-color:#d14343}
+  #toolbar button.warn:hover{background:#b03232}
+  #toolbar .sep{width:1px;height:22px;background:#d0d5db;margin:0 4px}
+  #toolbar .label{font-size:13px;color:#5b6470;margin:0 2px}
+
+  /* ========== SVG 脑图区域 ========== */
+  #mindmap{
+    display:block;width:100%;height:100vh;
+  }
+  svg.markmap{width:100%;height:100%}
+  .markmap-node text{fill:#1c2127}
+  .markmap-link{stroke:#c9d3dd}
+</style>
+</head>
+<body>
+
+<div id="loading"><div class="spin"></div><div>正在渲染脑图…</div></div>
+
+<div id="toolbar">
+  <button class="primary" onclick="expandAll()">全部展开</button>
+  <button class="warn" onclick="collapseAll()">全部收缩</button>
+  <div class="sep"></div>
+  <button onclick="showDetails()">显示详解</button>
+  <button onclick="hideDetails()">隐藏详解</button>
+  <div class="sep"></div>
+  <span class="label">层级:</span>
+  <button onclick="expandTo(1)">L1</button>
+  <button onclick="expandTo(2)">L2</button>
+  <button onclick="expandTo(3)">L3</button>
+  <button onclick="expandTo(4)">L4</button>
+  <button onclick="expandTo(5)">L5</button>
+</div>
+
+<svg id="mindmap"></svg>
+
+<!-- ═══════ Markdown 脑图内容（build.sh 填入） ═══════ -->
+<script id="md-source" type="text/template">__MARKDOWN_CONTENT__</script>
+
+<!-- ═══════ d3.js v7（build.sh 内联填入，纯离线，零 CDN） ═══════ -->
+<script>__D3_CODE__</script>
+
+<!-- ═══════ markmap-lib 浏览器构建（build.sh 内联填入） ═══════ -->
+<script>__MARKMAP_LIB_CODE__</script>
+
+<!-- ═══════ markmap-view 浏览器构建（build.sh 内联填入） ═══════ -->
+<script>__MARKMAP_VIEW_CODE__</script>
+
+<script>
+/* ========== 树遍历工具 ========== */
+function walk(node, fn, depth) {
+  if (!node) return;
+  depth = depth || 0;
+  fn(node, depth);
+  if (node.children) {
+    for (var i = 0; i < node.children.length; i++) {
+      walk(node.children[i], fn, depth + 1);
+    }
+  }
+}
+
+/* ========== 全部展开 ========== */
+function expandAll() {
+  walk(mm.state.data, function(n) {
+    if (!n.payload) n.payload = {};
+    n.payload.fold = 0;
+  });
+  mm.renderData();
+  setTimeout(function() { mm.fit(); }, 300);
+}
+
+/* ========== 全部收缩（保留根节点展开） ========== */
+function collapseAll() {
+  walk(mm.state.data, function(n, d) {
+    if (!n.payload) n.payload = {};
+    n.payload.fold = (d >= 1) ? 1 : 0;
+  });
+  mm.renderData();
+  setTimeout(function() { mm.fit(); }, 300);
+}
+
+/* ========== 展开到指定层级 ========== */
+function expandTo(level) {
+  walk(mm.state.data, function(n, d) {
+    if (!n.payload) n.payload = {};
+    n.payload.fold = (d >= level) ? 1 : 0;
+  });
+  mm.renderData();
+  setTimeout(function() { mm.fit(); }, 300);
+}
+
+/* ========== 隐藏详解（折叠 L3+ 概念节点，保留 L1-L2 展开状态） ========== */
+function hideDetails() {
+  walk(mm.state.data, function(n, d) {
+    if (d >= 3 && n.children && n.children.length > 0) {
+      if (!n.payload) n.payload = {};
+      n.payload.fold = 1;
+    }
+  });
+  mm.renderData();
+  setTimeout(function() { mm.fit(); }, 300);
+}
+
+/* ========== 显示详解（上下文感知：只展开用户已打开分支内的详解） ========== */
+function showDetails() {
+  function process(node, depth, isVisible) {
+    if (!node || !isVisible) return;
+    var folded = node.payload && node.payload.fold === 1;
+    // 在详解层级(>=3)：可见但折叠的节点 → 展开它+所有后代
+    if (depth >= 3 && folded && node.children) {
+      node.payload.fold = 0;
+      unfoldAll(node);
+      return;
+    }
+    // 未折叠：递归进入可见子节点
+    if (!folded && node.children) {
+      for (var i = 0; i < node.children.length; i++) {
+        process(node.children[i], depth + 1, true);
+      }
+    }
+    // 在 depth<3 处折叠的：用户选择保持关闭，不动
+  }
+  function unfoldAll(node) {
+    if (!node.children) return;
+    for (var i = 0; i < node.children.length; i++) {
+      var c = node.children[i];
+      if (!c.payload) c.payload = {};
+      c.payload.fold = 0;
+      unfoldAll(c);
+    }
+  }
+  process(mm.state.data, 0, true);
+  mm.renderData();
+  setTimeout(function() { mm.fit(); }, 300);
+}
+
+/* ========== 初始化 markmap（纯离线，零 CDN，手动 create 以暴露实例） ========== */
+(function(){
+  var mk = window.markmap;
+  var transformer = new mk.Transformer();
+  var md = document.getElementById('md-source').textContent;
+  var result = transformer.transform(md);
+
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('toolbar').style.display = 'flex';
+
+  window.mm = mk.Markmap.create('#mindmap', {
+    colorFreezeLevel: 2,
+    maxWidth: 580,
+    initialExpandLevel: 2,
+    duration: 200,
+  }, result.root);
+})();
+</script>
+</body>
+</html>
