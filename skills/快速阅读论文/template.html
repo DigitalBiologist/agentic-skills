@@ -24,8 +24,11 @@
        position:sticky;top:0;z-index:5;background:#f6f7f9;padding:8px 16px 9px;
        border-bottom:1px solid var(--line);box-shadow:0 2px 5px rgba(0,0,0,.04)}
   .chip{font-size:13px;padding:3px 11px;border:1px solid var(--line);border-radius:14px;
-        background:#fafbfc;color:var(--sub);cursor:pointer;user-select:none}
+        background:#fafbfc;color:var(--sub);cursor:pointer;user-select:none;
+        max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+        transition:background .15s,color .15s,border-color .15s}
   .chip:hover{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
+  .chip.active{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:600}
   .pageind{margin-left:auto;font-size:13px;color:var(--sub)}
   /* ---- main split ---- */
   main{display:flex;height:100vh}
@@ -54,6 +57,19 @@
   .badge{flex:0 0 auto;font-size:12px;font-weight:600;color:#fff;background:var(--accent);
          padding:2px 8px;border-radius:10px;cursor:pointer;white-space:nowrap;text-decoration:none}
   .badge:hover{background:#1f4e7a}
+  /* 🔎 取证按钮：只在 pin:true 卡片上出现，比 badge 弱一档（强调可点但不抢戏） */
+  .locate{flex:0 0 auto;font-size:12px;font-weight:600;color:var(--accent);background:#fff;
+          border:1px solid var(--accent);padding:1px 7px;border-radius:10px;cursor:pointer;
+          white-space:nowrap;margin-left:4px;user-select:none}
+  .locate:hover{background:var(--accent-soft)}
+  /* PDF.js 文本层：透明覆盖在 canvas 上；🔎 命中时局部显黄底 */
+  .pg .tl{position:absolute;left:0;top:0;width:100%;height:100%;
+          opacity:0;pointer-events:none;line-height:1;--scale-factor:1}
+  .pg .tl > span{position:absolute;white-space:pre;transform-origin:0 0;color:transparent}
+  .pg .tl.show-hl{opacity:1}
+  .pg .tl > span.hover-hl{background:rgba(255,235,59,0.55);border-radius:2px;color:transparent;
+                          transition:background 1s ease}
+  .pg .tl > span.hover-hl.fading{background:rgba(255,235,59,0)}
   .card p{font-size:15px;color:#2b3138;margin:3px 0}
   .card ul{margin:5px 0 0;padding-left:2px;list-style:none}
   .card li{font-size:15px;color:#2b3138;margin:6px 0;padding-left:16px;position:relative}
@@ -106,6 +122,11 @@ const SECTIONS = [
  //  card  普通段落讲解          : {kind:"card",  page, t:"标题", points:[[小标签, 说明], ...]}
  //  fig   图表讲解(cream 底📊)  : {kind:"fig",   page, t:"图N", points:[[panel如"A 分图", 讲解], ...]}
  //  page = 该内容对应的 PDF 物理页码（点右上角 📄P# 跳到左侧该页）
+ //
+ //  ★ 可选 pin + q（lead / card 用）：只对作者「核心 claim」级的 3-5 张卡片打开
+ //    pin:true → 右上角额外渲染「🔎 取证」按钮，点击在 PDF 里高亮原文
+ //    q:"英文原文短语" → 用作搜索 key（5-30 字、特征词组；算法会自动归一化软连字符 / 空白 / 大小写）
+ //    示例：{kind:"card", page:3, pin:true, q:"secologanin transporter SLTr", ...}
  //  ⚠️ 内容里的引号一律用中文「」或弯引号 "" —— 禁用英文直双引号，否则会截断 JS 字符串
  {name:"🔑 核心词汇（读前必看）", items:[
    {kind:"terms", page:1, t:"方法与工具", points:[
@@ -121,21 +142,32 @@ const SECTIONS = [
 const guide = document.getElementById('guide-body');
 const nav = document.getElementById('nav');
 const navAnchor = document.getElementById('pageind');  // chip 始终插入到这个之前 → 保持 SECTIONS 顺序
+const escAttr = s => String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+const chipBySec = [];  // chipBySec[si] = chip element，IntersectionObserver 用
 SECTIONS.forEach((sec, si)=>{
   const h = document.createElement('div');
   h.className='sec-h'; h.id='sec-'+si; h.textContent=sec.name;
   guide.appendChild(h);
-  // nav chip：每次都插到 #pageind 之前（不是 nav.firstChild，否则会反序）
+  // nav chip：保留 emoji，截断放宽到 14（CSS 会再用 ellipsis 兜底）
   const chip=document.createElement('span');
-  chip.className='chip'; chip.textContent=sec.name.replace(/^[^ ]+ /,'').slice(0,8);
+  chip.className='chip'; chip.textContent=sec.name.slice(0,14);
+  chip.title=sec.name;  // 鼠标悬停看完整名
   chip.onclick=()=>h.scrollIntoView({behavior:'smooth',block:'start'});
   nav.insertBefore(chip, navAnchor);
+  chipBySec[si] = chip;
   sec.items.forEach(it=>{
     const c=document.createElement('div');
     c.className='card'+(it.kind==='fig'?' fig':'')+(it.kind==='terms'?' terms':'');
-    if(it.kind==='lead'){ c.className='card'; c.innerHTML=`<div class="top"><div class="t">核心一句话</div><a class="badge" data-pg="${it.page}">📄 P${it.page}</a></div><div class="lead">${it.html}</div>`; }
+    // pin:true 的 lead/card 多渲染一个 🔎 取证按钮
+    const locateBtn = (it.pin && it.q)
+      ? `<button class="locate" data-q="${escAttr(it.q)}" data-pg="${it.page}" title="在原文 PDF 里定位「${escAttr(it.q)}」">🔎 取证</button>`
+      : '';
+    if(it.kind==='lead'){
+      c.className='card';
+      c.innerHTML=`<div class="top"><div class="t">核心一句话</div><div><a class="badge" data-pg="${it.page}">📄 P${it.page}</a>${locateBtn}</div></div><div class="lead">${it.html}</div>`;
+    }
     else{
-      let inner=`<div class="top"><div class="t">${it.t}</div><a class="badge" data-pg="${it.page}">📄 P${it.page}</a></div>`;
+      let inner=`<div class="top"><div class="t">${it.t}</div><div><a class="badge" data-pg="${it.page}">📄 P${it.page}</a>${locateBtn}</div></div>`;
       inner+='<ul>'+it.points.map(p=> it.kind==='terms'
         ? `<li class="term"><span class="tn">${p[0]}</span>${p[1]}</li>`
         : `<li><span class="k">${p[0]}</span>${p[1]}</li>`).join('')+'</ul>';
@@ -144,6 +176,32 @@ SECTIONS.forEach((sec, si)=>{
     guide.appendChild(c);
   });
 });
+
+// IntersectionObserver：滚动右侧讲解时，把当前可见 section 的 chip 高亮
+(function(){
+  if(!chipBySec.length || !('IntersectionObserver' in window)) return;
+  const headers = chipBySec.map((_,si)=>document.getElementById('sec-'+si));
+  let lastActiveIdx = -1;
+  const setActive = idx => {
+    if(idx === lastActiveIdx) return;
+    if(lastActiveIdx >= 0) chipBySec[lastActiveIdx]?.classList.remove('active');
+    chipBySec[idx]?.classList.add('active');
+    lastActiveIdx = idx;
+  };
+  setActive(0);
+  // 用 scroll 监听 + 自己算最贴近顶部的 sec-h（IO 在 sticky nav 下有边界 case 容易错）
+  const guidePane = document.getElementById('guide-pane');
+  guidePane.addEventListener('scroll', ()=>{
+    const navH = 56;  // 估算 sticky nav 高度
+    let bestIdx = 0;
+    for(let i=0;i<headers.length;i++){
+      const top = headers[i].getBoundingClientRect().top;
+      if(top - navH <= 12) bestIdx = i;  // 12px 容差
+      else break;
+    }
+    setActive(bestIdx);
+  });
+})();
 // 页码徽章 → 跳转左侧 PDF
 guide.addEventListener('click', e=>{
   const b=e.target.closest('.badge'); if(!b) return;
@@ -204,6 +262,138 @@ renderAll().catch(err=>{
   const l=document.getElementById('load');
   if(l) l.innerHTML='<div style="color:#b00;font-size:13px;padding:20px;text-align:center">PDF 渲染失败：'+err.message+'<br><br>请用 Chrome 打开本文件夹下的 index.html。</div>';
   console.error(err);
+});
+
+/* ============ 选择性 🔎 取证：lazy 文本层 + 归一化搜索 + 黄底自动 fade ============
+   - 仅在 pin:true 的 lead/card 上有 🔎 按钮
+   - 第一次点同一页的 🔎 时才 renderTextLayer 该页（lazy + cache）
+   - 搜索算法：page hint 排序 + soft hyphen 去除 + 空白归一化 + 邻 span 间补空格 + case-insensitive
+   - 命中：黄底闪 1.5s 自动 fade；未命中：pageind 显示「↳ 取证失败」1.5s 后恢复
+============================================================================== */
+
+// 给某页 lazy 渲染文本层（首次点 🔎 时）
+async function ensureTextLayer(idx){
+  const wrap = pageEls[idx];
+  if(!wrap || wrap._tl) return wrap?._tl;
+  try {
+    const page = await pdfDoc.getPage(idx + 1);
+    const base = page.getViewport({scale:1});
+    const paneW = pane.clientWidth*0.96-2;
+    const scale = paneW/base.width;
+    const vp = page.getViewport({scale});
+    const tc = await page.getTextContent();
+    const tl = document.createElement('div');
+    tl.className='tl';
+    tl.style.setProperty('--scale-factor', scale);
+    wrap.appendChild(tl);
+    const tlSpans = [];
+    await pdfjsLib.renderTextLayer({
+      textContentSource: tc, container: tl, viewport: vp, textDivs: tlSpans,
+    }).promise;
+    wrap._tl = { spans: tlSpans };
+    return wrap._tl;
+  } catch(e) {
+    console.warn('text layer page', idx+1, 'failed:', e.message);
+    return null;
+  }
+}
+
+// 一次性构建归一化检索串 + 字符 → span 映射
+function buildIndex(spans){
+  let s = '';
+  const map = [];
+  let lastCh = '';
+  for(let i=0;i<spans.length;i++){
+    const t = (spans[i] && spans[i].textContent) || '';
+    for(let j=0;j<t.length;j++){
+      let c = t[j];
+      if(c === '­') continue;          // soft hyphen
+      if(/\s/.test(c)){
+        c = ' ';
+        if(lastCh === ' ') continue;       // 折叠空白
+      }
+      s += c;
+      map.push({spanIdx:i, charInSpan:j});
+      lastCh = c;
+    }
+    if(i < spans.length - 1 && lastCh !== ' '){
+      s += ' ';
+      map.push({spanIdx:i, charInSpan:Math.max(0, t.length-1)});
+      lastCh = ' ';
+    }
+  }
+  return { norm:s, normLower:s.toLowerCase(), map };
+}
+
+const normQ = q => String(q).replace(/­/g,'').replace(/\s+/g,' ').trim().toLowerCase();
+
+function pageSearchOrder(n, center0){
+  const order = [];
+  const c = Math.max(0, Math.min(n-1, center0|0));
+  order.push(c);
+  for(let off=1; off<n; off++){
+    if(c-off >= 0) order.push(c-off);
+    if(c+off < n) order.push(c+off);
+  }
+  return order;
+}
+
+let fadeTimer = null;
+function clearHL(){
+  document.querySelectorAll('.tl.show-hl').forEach(t=>t.classList.remove('show-hl'));
+  document.querySelectorAll('.tl > span.hover-hl').forEach(s=>{
+    s.classList.remove('hover-hl'); s.classList.remove('fading');
+  });
+  if(fadeTimer){ clearTimeout(fadeTimer); fadeTimer = null; }
+}
+
+async function findAndHL(q, hintPage){
+  if(!q || !pdfDoc) return;
+  clearHL();
+  const nq = normQ(q);
+  if(!nq) return;
+  const order = pageSearchOrder(pageEls.length, (hintPage|0) - 1);
+  for(const idx of order){
+    const tl = await ensureTextLayer(idx);
+    if(!tl || !tl.spans || !tl.spans.length) continue;
+    if(!tl.index) tl.index = buildIndex(tl.spans);
+    const pos = tl.index.normLower.indexOf(nq);
+    if(pos < 0) continue;
+    const startMap = tl.index.map[pos];
+    const endMap   = tl.index.map[Math.min(pos + nq.length - 1, tl.index.map.length - 1)];
+    if(!startMap || !endMap) continue;
+    const startSpan = startMap.spanIdx;
+    const endSpan   = endMap.spanIdx;
+    const wrap = pageEls[idx];
+    const tlEl = wrap.querySelector('.tl');
+    if(tlEl) tlEl.classList.add('show-hl');
+    for(let i=startSpan; i<=endSpan; i++){
+      tl.spans[i] && tl.spans[i].classList.add('hover-hl');
+    }
+    tl.spans[startSpan] && tl.spans[startSpan].scrollIntoView({behavior:'smooth', block:'center'});
+    pageind.textContent = `↳ 命中第 ${idx+1} 页`;
+    // 1.5s 后自动 fade
+    fadeTimer = setTimeout(()=>{
+      document.querySelectorAll('.tl > span.hover-hl').forEach(s=>s.classList.add('fading'));
+      setTimeout(clearHL, 1100);  // 等动画结束
+    }, 1500);
+    return;
+  }
+  // 未找到
+  pageind.textContent = `↳ 取证失败：未找到「${q.length>20 ? q.slice(0,20)+'…' : q}」`;
+  fadeTimer = setTimeout(()=>{
+    if(pdfDoc) pageind.textContent = `共 ${pdfDoc.numPages} 页 · 点右侧 📄P# 跳转`;
+  }, 2000);
+}
+
+// 委托：click .locate 按钮就触发
+guide.addEventListener('click', e=>{
+  const btn = e.target.closest('.locate');
+  if(!btn) return;
+  e.stopPropagation();   // 别冒泡到 badge 跳页处理
+  const q = btn.dataset.q;
+  const hintPage = parseInt(btn.dataset.pg, 10) || 1;
+  findAndHL(q, hintPage);
 });
 
 /* ============ 可拖动分隔条 ============ */

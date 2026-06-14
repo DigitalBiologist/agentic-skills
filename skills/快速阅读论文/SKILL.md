@@ -48,6 +48,46 @@ bash ~/.claude/commands/快速阅读论文/scripts/build.sh "<论文PDF路径>" 
 
   开头建议放一个 `🔑 核心词汇（读前必看）` section，分「方法与工具/研究对象/核心概念」几组 `terms` 卡，把不懂就读不下去的术语先讲清楚（中英对照 + 大白话）。
 
+#### 🔎 取证按钮 — 可选 `pin` + `q`（**仅对核心 claim**）
+
+只对 **`lead` 和 `card`** 类型的卡片可选地加两个字段：
+
+- `pin:true` — 右上角额外渲染一个「🔎 取证」按钮
+- `q:"英文原文短语"` — 5-30 字的英文短语，点击按钮时在左侧 PDF 里搜索并黄底高亮
+
+```js
+{kind:"card", page:3, pin:true, q:"secologanin transporter SLTr", t:"…", points:[…]}
+{kind:"lead", page:1, pin:true, q:"38 dedicated MIA pathway genes", html:`…`}
+```
+
+**严格控制密度**：**一篇论文只对 3-5 张「作者核心 claim」级别的卡打 pin**，比如：
+- 新发现的基因 / 蛋白 / 转运体（"发现了 SLTr 转运体"）
+- 关键实验定量结论（"催化偶联是限速步骤，AHVB 比单体低两个量级"）
+- 反直觉发现（"催化酶在表皮、代谢物在异细胞，证明跨细胞转运存在"）
+
+**不要对每条 li 都打 pin**——会被淹没；用户也分不清哪个是真重点。
+
+**`q` 字段选择规则**：
+- 从论文**英文原文**摘 5-30 字短语；PDF 文本层是英文，中文同义句搜不到
+- 优先选**独特词组**：专有名词组合、数字+单位、关键动词短语
+- 卡片的 `page` 字段务必准确——它决定搜索从哪页开始（向两侧扩散）
+- 算法已自动归一化：去 soft hyphen（断行处隐形连字符）、折叠空白、相邻 span 间补空格、case-insensitive
+- 找不到时不会静默——`pageind` 显示「↳ 取证失败：未找到…」+ 2 秒后恢复
+
+**好 q 示例**：
+| 好 q | 为什么好 |
+|---|---|
+| `secologanin transporter SLTr` | 专有名词组合，独一无二 |
+| `38 dedicated MIA pathway genes` | 数字 + 名词，精确 |
+| `tetrahydroalstonine synthase` | 长酶名，命中精确 |
+
+**坏 q 示例**：
+| 坏 q | 为什么坏 |
+|---|---|
+| `the authors show that` | 通用，整篇命中无意义 |
+| `as expected` | 命中点散，定位不准 |
+| `α-3',4'-Anhydrovinblastine` | 含希腊字母 + 特殊符号，PDF 文本层可能不一致 |
+
 ### 4. 验证（必做，别靠肉眼假设）
 
 ```bash
